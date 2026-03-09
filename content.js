@@ -271,13 +271,15 @@ function createTweetCardElement(tweet, displayIndex) {
 
     const item = document.createElement("div");
     Object.assign(item.style, {
-        padding: "8px",
-        marginBottom: "8px",
-        border: "1px solid #e5e7eb",
-        borderRadius: "8px",
+        padding: "10px",
+        marginBottom: "10px",
+        border: "1px solid rgba(255,255,255,0.22)",
+        borderRadius: "14px",
         lineHeight: "1.5",
         whiteSpace: "pre-wrap",
-        wordBreak: "break-word"
+        wordBreak: "break-word",
+        background: "linear-gradient(145deg, rgba(255,255,255,0.14), rgba(255,255,255,0.05))",
+        boxShadow: "0 10px 20px rgba(10, 20, 40, 0.18), inset 0 1px 0 rgba(255,255,255,0.26)"
     });
 
     const topLine = document.createElement("div");
@@ -291,7 +293,7 @@ function createTweetCardElement(tweet, displayIndex) {
     const numberSpan = document.createElement("span");
     numberSpan.textContent = `${displayIndex}. `;
     Object.assign(numberSpan.style, {
-        color: "#666",
+        color: "rgba(226,232,240,0.92)",
         marginTop: "2px"
     });
 
@@ -310,7 +312,8 @@ function createTweetCardElement(tweet, displayIndex) {
         iconLink.rel = "noopener noreferrer";
         Object.assign(iconLink.style, {
             display: "inline-flex",
-            flexShrink: "0"
+            flexShrink: "0",
+            textDecoration: "none"
         });
 
         const iconImage = document.createElement("img");
@@ -318,12 +321,13 @@ function createTweetCardElement(tweet, displayIndex) {
         iconImage.alt = `@${account} icon`;
         iconImage.loading = "lazy";
         Object.assign(iconImage.style, {
-            width: "32px",
-            height: "32px",
+            width: "34px",
+            height: "34px",
             borderRadius: "999px",
             objectFit: "cover",
-            border: "1px solid #d1d5db",
-            background: "#f3f4f6"
+            border: "1px solid rgba(255,255,255,0.5)",
+            background: "rgba(255,255,255,0.3)",
+            boxShadow: "0 4px 12px rgba(15,23,42,0.25)"
         });
 
         iconLink.appendChild(iconImage);
@@ -339,14 +343,16 @@ function createTweetCardElement(tweet, displayIndex) {
     }
     Object.assign(accountElement.style, {
         fontWeight: "bold",
-        color: "#1d9bf0",
-        textDecoration: "none"
+        color: "#7dd3fc",
+        textDecoration: "none",
+        letterSpacing: "0.2px"
     });
 
     const textLine = document.createElement("div");
     textLine.textContent = text;
     Object.assign(textLine.style, {
-        marginTop: "4px"
+        marginTop: "4px",
+        color: "#eef2ff"
     });
 
     contentWrap.append(accountElement, textLine);
@@ -359,7 +365,7 @@ function createTweetCardElement(tweet, displayIndex) {
         imageLabel.textContent = `添付画像: ${images.length}件`;
         Object.assign(imageLabel.style, {
             fontSize: "12px",
-            color: "#666",
+            color: "rgba(226,232,240,0.86)",
             marginBottom: "6px"
         });
         item.appendChild(imageLabel);
@@ -367,7 +373,7 @@ function createTweetCardElement(tweet, displayIndex) {
         const imageGrid = document.createElement("div");
         Object.assign(imageGrid.style, {
             display: "grid",
-            gridTemplateColumns: "repeat(auto-fill, minmax(130px, 1fr))",
+            gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))",
             gap: "8px"
         });
 
@@ -385,9 +391,10 @@ function createTweetCardElement(tweet, displayIndex) {
                 width: "100%",
                 height: "120px",
                 objectFit: "cover",
-                borderRadius: "8px",
-                border: "1px solid #d1d5db",
-                background: "#f3f4f6"
+                borderRadius: "10px",
+                border: "1px solid rgba(255,255,255,0.3)",
+                background: "rgba(255,255,255,0.2)",
+                boxShadow: "0 6px 16px rgba(2, 8, 23, 0.25)"
             });
 
             imageLink.appendChild(image);
@@ -445,23 +452,24 @@ function showGeminiResultWindow(result, topicKeyword, groupedResult = null) {
         maxWidth: "95vw",
         height: "70vh",
         zIndex: "2147483647",
-        background: "#ffffff",
-        color: "#111111",
-        border: "1px solid #d9d9d9",
-        borderRadius: "10px",
-        boxShadow: "0 12px 28px rgba(0, 0, 0, 0.2)",
+        background: "linear-gradient(155deg, rgba(15,23,42,0.72), rgba(8,47,73,0.64))",
+        color: "#eef2ff",
+        border: "1px solid rgba(255,255,255,0.28)",
+        borderRadius: "16px",
+        boxShadow: "0 20px 40px rgba(2, 8, 23, 0.45), inset 0 1px 0 rgba(255,255,255,0.24)",
         display: "flex",
         flexDirection: "column",
         resize: "both",
         overflow: "hidden",
-        fontFamily: "Segoe UI, Arial, sans-serif"
+        backdropFilter: "blur(18px) saturate(120%)",
+        fontFamily: "Avenir Next, Hiragino Sans, Yu Gothic UI, Meiryo, sans-serif"
     });
 
     const header = document.createElement("div");
     Object.assign(header.style, {
-        padding: "10px 12px",
-        background: "#f3f4f6",
-        borderBottom: "1px solid #e5e7eb",
+        padding: "11px 12px",
+        background: "linear-gradient(120deg, rgba(255,255,255,0.26), rgba(255,255,255,0.08))",
+        borderBottom: "1px solid rgba(255,255,255,0.24)",
         display: "flex",
         alignItems: "center",
         justifyContent: "space-between",
@@ -472,6 +480,11 @@ function showGeminiResultWindow(result, topicKeyword, groupedResult = null) {
     const title = document.createElement("strong");
     const keywordSuffix = topicKeyword ? ` | keyword: ${topicKeyword}` : "";
     title.textContent = `Gemini Result${keywordSuffix}`;
+    Object.assign(title.style, {
+        color: "#f8fafc",
+        textShadow: "0 2px 10px rgba(0,0,0,0.3)",
+        letterSpacing: "0.2px"
+    });
 
     const actionArea = document.createElement("div");
     Object.assign(actionArea.style, {
@@ -487,10 +500,11 @@ function showGeminiResultWindow(result, topicKeyword, groupedResult = null) {
     const copyButton = document.createElement("button");
     copyButton.textContent = "Copy";
     Object.assign(copyButton.style, {
-        border: "1px solid #d1d5db",
-        background: "#ffffff",
-        borderRadius: "6px",
-        padding: "4px 8px",
+        border: "1px solid rgba(255,255,255,0.34)",
+        background: "rgba(255,255,255,0.16)",
+        color: "#f8fafc",
+        borderRadius: "10px",
+        padding: "5px 10px",
         cursor: "pointer",
         fontSize: "12px"
     });
@@ -529,10 +543,11 @@ function showGeminiResultWindow(result, topicKeyword, groupedResult = null) {
     const closeButton = document.createElement("button");
     closeButton.textContent = "x";
     Object.assign(closeButton.style, {
-        border: "1px solid #d1d5db",
-        background: "#ffffff",
-        borderRadius: "6px",
-        padding: "4px 8px",
+        border: "1px solid rgba(255,255,255,0.34)",
+        background: "rgba(255,255,255,0.16)",
+        color: "#f8fafc",
+        borderRadius: "10px",
+        padding: "5px 10px",
         cursor: "pointer",
         fontSize: "14px"
     });
@@ -549,9 +564,10 @@ function showGeminiResultWindow(result, topicKeyword, groupedResult = null) {
     Object.assign(body.style, {
         overflow: "auto",
         padding: "10px",
-        background: "#ffffff",
+        background: "linear-gradient(180deg, rgba(255,255,255,0.06), rgba(255,255,255,0.02))",
         flex: "1",
-        fontSize: "14px"
+        fontSize: "14px",
+        color: "#e2e8f0"
     });
 
     // グループ化された結果を表示
@@ -561,7 +577,8 @@ function showGeminiResultWindow(result, topicKeyword, groupedResult = null) {
         Object.assign(heading.style, {
             fontWeight: "bold",
             marginBottom: "10px",
-            fontSize: "16px"
+            fontSize: "16px",
+            color: "#f8fafc"
         });
         body.appendChild(heading);
 
@@ -572,10 +589,11 @@ function showGeminiResultWindow(result, topicKeyword, groupedResult = null) {
             Object.assign(summaryBox.style, {
                 padding: "10px",
                 marginBottom: "12px",
-                background: "#f0f9ff",
-                border: "1px solid #bfdbfe",
-                borderRadius: "6px",
-                lineHeight: "1.5"
+                background: "linear-gradient(140deg, rgba(125,211,252,0.24), rgba(196,181,253,0.16))",
+                border: "1px solid rgba(255,255,255,0.3)",
+                borderRadius: "10px",
+                lineHeight: "1.5",
+                color: "#e0f2fe"
             });
             body.appendChild(summaryBox);
         }
@@ -593,7 +611,7 @@ function showGeminiResultWindow(result, topicKeyword, groupedResult = null) {
                 fontWeight: "bold",
                 marginBottom: "6px",
                 fontSize: "15px",
-                color: "#1e40af"
+                color: "#bae6fd"
             });
             groupContainer.appendChild(groupTitle);
 
@@ -602,7 +620,7 @@ function showGeminiResultWindow(result, topicKeyword, groupedResult = null) {
                 reasonText.textContent = `理由: ${group.reason}`;
                 Object.assign(reasonText.style, {
                     fontSize: "13px",
-                    color: "#64748b",
+                    color: "#cbd5e1",
                     marginBottom: "8px",
                     marginLeft: "8px"
                 });
@@ -634,7 +652,7 @@ function showGeminiResultWindow(result, topicKeyword, groupedResult = null) {
         rawSummary.textContent = "Geminiの生レスポンスを表示";
         Object.assign(rawSummary.style, {
             cursor: "pointer",
-            color: "#475569",
+            color: "#93c5fd",
             fontSize: "13px"
         });
 
@@ -644,7 +662,7 @@ function showGeminiResultWindow(result, topicKeyword, groupedResult = null) {
             lineHeight: "1.6",
             whiteSpace: "pre-wrap",
             wordBreak: "break-word",
-            color: "#334155",
+            color: "#e2e8f0",
             fontSize: "13px"
         });
         rawText.textContent = result;
@@ -833,23 +851,24 @@ function showTweetWindow(tweets, targetCount, topicKeyword) {
         maxWidth: "95vw",
         height: "70vh",
         zIndex: "2147483647",
-        background: "#ffffff",
-        color: "#111111",
-        border: "1px solid #d9d9d9",
-        borderRadius: "10px",
-        boxShadow: "0 12px 28px rgba(0, 0, 0, 0.2)",
+        background: "linear-gradient(155deg, rgba(15,23,42,0.72), rgba(8,47,73,0.64))",
+        color: "#eef2ff",
+        border: "1px solid rgba(255,255,255,0.28)",
+        borderRadius: "16px",
+        boxShadow: "0 20px 40px rgba(2, 8, 23, 0.45), inset 0 1px 0 rgba(255,255,255,0.24)",
         display: "flex",
         flexDirection: "column",
         resize: "both",
         overflow: "hidden",
-        fontFamily: "Segoe UI, Arial, sans-serif"
+        backdropFilter: "blur(18px) saturate(120%)",
+        fontFamily: "Avenir Next, Hiragino Sans, Yu Gothic UI, Meiryo, sans-serif"
     });
 
     const header = document.createElement("div");
     Object.assign(header.style, {
-        padding: "10px 12px",
-        background: "#f3f4f6",
-        borderBottom: "1px solid #e5e7eb",
+        padding: "11px 12px",
+        background: "linear-gradient(120deg, rgba(255,255,255,0.26), rgba(255,255,255,0.08))",
+        borderBottom: "1px solid rgba(255,255,255,0.24)",
         display: "flex",
         alignItems: "center",
         justifyContent: "space-between",
@@ -860,6 +879,11 @@ function showTweetWindow(tweets, targetCount, topicKeyword) {
     const title = document.createElement("strong");
     const keywordSuffix = topicKeyword ? ` | keyword: ${topicKeyword}` : "";
     title.textContent = `Tweet Collector (${tweets.length}/${targetCount})${keywordSuffix}`;
+    Object.assign(title.style, {
+        color: "#f8fafc",
+        textShadow: "0 2px 10px rgba(0,0,0,0.3)",
+        letterSpacing: "0.2px"
+    });
 
     const actionArea = document.createElement("div");
     Object.assign(actionArea.style, {
@@ -870,13 +894,14 @@ function showTweetWindow(tweets, targetCount, topicKeyword) {
     const geminiButton = document.createElement("button");
     geminiButton.textContent = "Auto Sending...";
     Object.assign(geminiButton.style, {
-        border: "1px solid #d1d5db",
-        background: "#4285f4",
+        border: "1px solid rgba(125,211,252,0.6)",
+        background: "linear-gradient(135deg, rgba(56,189,248,0.78), rgba(34,197,94,0.58))",
         color: "#ffffff",
-        borderRadius: "6px",
-        padding: "4px 8px",
+        borderRadius: "10px",
+        padding: "5px 10px",
         cursor: "pointer",
-        fontSize: "12px"
+        fontSize: "12px",
+        boxShadow: "0 6px 16px rgba(2, 132, 199, 0.35)"
     });
     const triggerGeminiSend = async (isAuto = false) => {
         geminiButton.disabled = true;
@@ -904,10 +929,11 @@ function showTweetWindow(tweets, targetCount, topicKeyword) {
     const copyButton = document.createElement("button");
     copyButton.textContent = "Copy";
     Object.assign(copyButton.style, {
-        border: "1px solid #d1d5db",
-        background: "#ffffff",
-        borderRadius: "6px",
-        padding: "4px 8px",
+        border: "1px solid rgba(255,255,255,0.34)",
+        background: "rgba(255,255,255,0.16)",
+        color: "#f8fafc",
+        borderRadius: "10px",
+        padding: "5px 10px",
         cursor: "pointer"
     });
     copyButton.addEventListener("click", async () => {
@@ -929,10 +955,11 @@ function showTweetWindow(tweets, targetCount, topicKeyword) {
     const closeButton = document.createElement("button");
     closeButton.textContent = "x";
     Object.assign(closeButton.style, {
-        border: "1px solid #d1d5db",
-        background: "#ffffff",
-        borderRadius: "6px",
-        padding: "4px 8px",
+        border: "1px solid rgba(255,255,255,0.34)",
+        background: "rgba(255,255,255,0.16)",
+        color: "#f8fafc",
+        borderRadius: "10px",
+        padding: "5px 10px",
         cursor: "pointer"
     });
     closeButton.addEventListener("click", () => {
@@ -948,13 +975,17 @@ function showTweetWindow(tweets, targetCount, topicKeyword) {
     Object.assign(body.style, {
         overflow: "auto",
         padding: "10px",
-        background: "#ffffff",
-        flex: "1"
+        background: "linear-gradient(180deg, rgba(255,255,255,0.06), rgba(255,255,255,0.02))",
+        flex: "1",
+        color: "#e2e8f0"
     });
 
     if (tweets.length === 0) {
         const empty = document.createElement("p");
         empty.textContent = "ツイートを取得できませんでした。";
+        Object.assign(empty.style, {
+            color: "#cbd5e1"
+        });
         body.appendChild(empty);
     } else {
         tweets.forEach((tweet, index) => {

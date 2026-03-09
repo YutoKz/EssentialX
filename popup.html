@@ -5,59 +5,133 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Tweet Collector</title>
   <style>
+    :root {
+      --text: #e2e8f0;
+      --muted: #cbd5e1;
+      --line: rgba(255, 255, 255, 0.28);
+      --glass-bg: linear-gradient(145deg, rgba(15, 23, 42, 0.78), rgba(8, 47, 73, 0.7));
+      --glass-soft: rgba(255, 255, 255, 0.14);
+      --accent: #7dd3fc;
+      --accent-strong: #38bdf8;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
     body {
       margin: 0;
-      width: 280px;
-      font-family: "Segoe UI", Arial, sans-serif;
-      background: #f8fafc;
-      color: #0f172a;
+      width: 320px;
+      min-height: 360px;
+      font-family: "Avenir Next", "Hiragino Sans", "Yu Gothic UI", "Meiryo", sans-serif;
+      background:
+        radial-gradient(120% 120% at 0% 0%, #0f172a 0%, #0b1120 46%, #082f49 100%);
+      color: var(--text);
     }
 
     .container {
+      margin: 12px;
       padding: 14px;
       display: grid;
       gap: 10px;
+      border-radius: 16px;
+      border: 1px solid var(--line);
+      background: var(--glass-bg);
+      box-shadow: 0 20px 35px rgba(2, 8, 23, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.18);
+      backdrop-filter: blur(14px) saturate(120%);
+    }
+
+    .title {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 2px 2px 8px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.18);
+      margin-bottom: 4px;
+    }
+
+    .title strong {
+      font-size: 14px;
+      letter-spacing: 0.2px;
+      color: #f8fafc;
+      text-shadow: 0 2px 8px rgba(0, 0, 0, 0.32);
+    }
+
+    .title span {
+      font-size: 11px;
+      color: var(--muted);
     }
 
     label {
       font-size: 12px;
       font-weight: 600;
+      color: var(--muted);
     }
 
     input {
       width: 100%;
-      box-sizing: border-box;
-      padding: 8px;
-      border: 1px solid #cbd5e1;
-      border-radius: 8px;
+      padding: 9px 10px;
+      border: 1px solid var(--line);
+      border-radius: 10px;
       font-size: 14px;
+      color: #f8fafc;
+      background: var(--glass-soft);
+      outline: none;
+      transition: border-color 120ms ease, box-shadow 120ms ease, transform 120ms ease;
+    }
+
+    input::placeholder {
+      color: rgba(226, 232, 240, 0.55);
+    }
+
+    input:focus {
+      border-color: rgba(125, 211, 252, 0.7);
+      box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.2);
+      transform: translateY(-1px);
     }
 
     button {
-      border: none;
-      border-radius: 8px;
-      background: #0f172a;
+      border: 1px solid rgba(125, 211, 252, 0.55);
+      border-radius: 10px;
+      background: linear-gradient(135deg, rgba(56, 189, 248, 0.85), rgba(14, 116, 144, 0.8));
       color: #ffffff;
-      padding: 9px 10px;
+      padding: 10px 12px;
       font-size: 14px;
+      font-weight: 700;
+      letter-spacing: 0.2px;
       cursor: pointer;
+      box-shadow: 0 10px 20px rgba(2, 132, 199, 0.35);
+      transition: transform 140ms ease, filter 140ms ease;
+    }
+
+    button:hover:not(:disabled) {
+      transform: translateY(-1px);
+      filter: brightness(1.06);
     }
 
     button:disabled {
-      opacity: 0.6;
+      opacity: 0.65;
       cursor: default;
     }
 
     #status {
-      min-height: 18px;
+      min-height: 22px;
       font-size: 12px;
-      color: #334155;
+      color: #bfdbfe;
       line-height: 1.4;
+      padding: 6px 8px;
+      border-radius: 8px;
+      background: rgba(15, 23, 42, 0.35);
+      border: 1px solid rgba(255, 255, 255, 0.12);
     }
   </style>
 </head>
 <body>
   <div class="container">
+    <div class="title">
+      <strong>Essential X</strong>
+      <span>Glass UI</span>
+    </div>
     <label for="targetCount">取得するツイート数</label>
     <input id="targetCount" type="number" min="10" step="10" value="100">
     <label for="topicKeyword">抽出キーワード</label>
