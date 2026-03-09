@@ -66,6 +66,61 @@ function extractTweetImageUrls(article) {
     return Array.from(imageUrls);
 }
 
+function toAbsoluteTwitterUrl(pathOrUrl) {
+    if (!pathOrUrl) {
+        return "";
+    }
+
+    try {
+        return new URL(pathOrUrl, location.origin).toString();
+    } catch {
+        if (String(pathOrUrl).startsWith("/")) {
+            return `https://x.com${pathOrUrl}`;
+        }
+        return String(pathOrUrl);
+    }
+}
+
+function normalizeProfileImageUrl(rawUrl) {
+    try {
+        const url = new URL(rawUrl);
+        if (url.hostname.includes("pbs.twimg.com") && url.pathname.includes("/profile_images/")) {
+            url.pathname = url.pathname.replace(/_normal(?=\.[a-z0-9]+$)/i, "_400x400");
+        }
+        return url.toString();
+    } catch {
+        return rawUrl;
+    }
+}
+
+function extractAccountIconUrl(article) {
+    const iconCandidates = article.querySelectorAll('[data-testid="Tweet-User-Avatar"] img[src], img[src]');
+
+    for (const img of iconCandidates) {
+        const src = img.getAttribute("src");
+        if (!src) {
+            continue;
+        }
+
+        try {
+            const url = new URL(src);
+            if (!url.hostname.includes("pbs.twimg.com")) {
+                continue;
+            }
+
+            if (!url.pathname.includes("/profile_images/")) {
+                continue;
+            }
+
+            return normalizeProfileImageUrl(src);
+        } catch {
+            // 解析できないURLは無視
+        }
+    }
+
+    return "";
+}
+
 function normalizeForGeminiMatch(value) {
     return String(value || "")
         .replace(/\s+/g, " ")
@@ -210,6 +265,9 @@ function createTweetCardElement(tweet, displayIndex) {
     const account = String(tweet?.account || "unknown");
     const text = String(tweet?.text || "");
     const images = Array.isArray(tweet?.images) ? tweet.images : [];
+    const tweetUrl = String(tweet?.url || "");
+    const iconUrl = String(tweet?.iconUrl || "");
+    const accountLinkUrl = tweetUrl || (account !== "unknown" ? `https://x.com/${account}` : "");
 
     const item = document.createElement("div");
     Object.assign(item.style, {
@@ -224,28 +282,76 @@ function createTweetCardElement(tweet, displayIndex) {
 
     const topLine = document.createElement("div");
     Object.assign(topLine.style, {
-        marginBottom: "8px"
+        marginBottom: "8px",
+        display: "flex",
+        alignItems: "flex-start",
+        gap: "8px"
     });
 
     const numberSpan = document.createElement("span");
     numberSpan.textContent = `${displayIndex}. `;
     Object.assign(numberSpan.style, {
         color: "#666",
-        marginRight: "4px"
+        marginTop: "2px"
     });
 
-    const accountSpan = document.createElement("span");
-    accountSpan.textContent = `@${account}`;
-    Object.assign(accountSpan.style, {
+    topLine.appendChild(numberSpan);
+
+    const contentWrap = document.createElement("div");
+    Object.assign(contentWrap.style, {
+        flex: "1",
+        minWidth: "0"
+    });
+
+    if (iconUrl) {
+        const iconLink = document.createElement("a");
+        iconLink.href = accountLinkUrl || iconUrl;
+        iconLink.target = "_blank";
+        iconLink.rel = "noopener noreferrer";
+        Object.assign(iconLink.style, {
+            display: "inline-flex",
+            flexShrink: "0"
+        });
+
+        const iconImage = document.createElement("img");
+        iconImage.src = iconUrl;
+        iconImage.alt = `@${account} icon`;
+        iconImage.loading = "lazy";
+        Object.assign(iconImage.style, {
+            width: "32px",
+            height: "32px",
+            borderRadius: "999px",
+            objectFit: "cover",
+            border: "1px solid #d1d5db",
+            background: "#f3f4f6"
+        });
+
+        iconLink.appendChild(iconImage);
+        topLine.appendChild(iconLink);
+    }
+
+    const accountElement = accountLinkUrl ? document.createElement("a") : document.createElement("span");
+    accountElement.textContent = `@${account}`;
+    if (accountElement instanceof HTMLAnchorElement) {
+        accountElement.href = accountLinkUrl;
+        accountElement.target = "_blank";
+        accountElement.rel = "noopener noreferrer";
+    }
+    Object.assign(accountElement.style, {
         fontWeight: "bold",
         color: "#1d9bf0",
-        marginRight: "8px"
+        textDecoration: "none"
     });
 
-    const textSpan = document.createElement("span");
-    textSpan.textContent = text;
+    const textLine = document.createElement("div");
+    textLine.textContent = text;
+    Object.assign(textLine.style, {
+        marginTop: "4px"
+    });
 
-    topLine.append(numberSpan, accountSpan, textSpan);
+    contentWrap.append(accountElement, textLine);
+
+    topLine.appendChild(contentWrap);
     item.appendChild(topLine);
 
     if (images.length > 0) {
@@ -897,7 +1003,7 @@ async function fetchTweets(targetCount = 100, topicKeyword = "") {
 
     isFetching = true;
     currentTopicKeyword = String(topicKeyword || "").trim();
-    const tweetsMap = new Map(); // key: status link or account+text, value: {account, text, images}
+    const tweetsMap = new Map(); // key: status link or account+text, value: {account, text, images, url, iconUrl}
     let previousSize = 0;
     let noProgressRounds = 0;
     const maxNoProgressRounds = 8;
@@ -961,22 +1067,32 @@ async function fetchTweets(targetCount = 100, topicKeyword = "") {
 
                 const statusLinkElement = article.querySelector('a[href*="/status/"]');
                 const statusHref = statusLinkElement?.getAttribute("href") || "";
+                const tweetUrl = toAbsoluteTwitterUrl(statusHref);
+                const iconUrl = extractAccountIconUrl(article);
                 const dedupeKey = statusHref || `${accountName}::${tweetText}`;
 
                 if (!tweetsMap.has(dedupeKey)) {
                     tweetsMap.set(dedupeKey, {
                         account: accountName,
                         text: tweetText,
-                        images: imageUrls
+                        images: imageUrls,
+                        url: tweetUrl,
+                        iconUrl
                     });
-                } else if (imageUrls.length > 0) {
+                } else {
                     const existingTweet = tweetsMap.get(dedupeKey);
                     const existingImages = Array.isArray(existingTweet.images) ? existingTweet.images : [];
                     const mergedImages = Array.from(new Set([...existingImages, ...imageUrls]));
-                    if (mergedImages.length !== existingImages.length) {
+                    const hasImageUpdate = mergedImages.length !== existingImages.length;
+                    const hasUrlUpdate = !existingTweet.url && Boolean(tweetUrl);
+                    const hasIconUpdate = !existingTweet.iconUrl && Boolean(iconUrl);
+
+                    if (hasImageUpdate || hasUrlUpdate || hasIconUpdate) {
                         tweetsMap.set(dedupeKey, {
                             ...existingTweet,
-                            images: mergedImages
+                            images: mergedImages,
+                            url: existingTweet.url || tweetUrl,
+                            iconUrl: existingTweet.iconUrl || iconUrl
                         });
                     }
                 }
