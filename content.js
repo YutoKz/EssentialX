@@ -1,11 +1,18 @@
 let isFetching = false;
 let currentTopicKeyword = "";
 
-// TODO: ここにGemini APIキーを設定してください
-const GEMINI_API_KEY = "AIzaSyAe2yrc9Nf-iAq-1j_Bi8HPWZVA5cpv5Fo";
-
 // TODO: 必要であれば追加の指示文を設定してください（任意）
 const GEMINI_EXTRA_PROMPT = "ゲームアプリ等の明らかな広告は除外してください。" //"表示する各ツイートはアカウントごとにまとめ、形式は「[@アカウント名] \n- ツイート内容\n- ツイート内容\n\n」としてください。";
+
+async function getGeminiApiKey() {
+    try {
+        const result = await chrome.storage.local.get("savedGeminiApiKey");
+        return result.savedGeminiApiKey || "";
+    } catch (error) {
+        console.error("APIキーの取得に失敗しました:", error);
+        return "";
+    }
+}
 
 function buildGeminiPrompt(topicKeyword) {
     const normalizedKeyword = String(topicKeyword || "").trim();
@@ -111,6 +118,82 @@ function parseGeminiSelectedIndices(geminiResultText, maxCount) {
     });
 
     return fallback;
+}
+
+function extractJsonObjectFromGeminiResult(resultText) {
+    const text = String(resultText || "");
+    
+    // ```json ... ``` ブロックを検索
+    const fencedMatch = text.match(/```(?:json)?\s*\n?([\s\S]*?)\n?```/);
+    if (fencedMatch && fencedMatch[1]) {
+        try {
+            return JSON.parse(fencedMatch[1].trim());
+        } catch {
+            // パース失敗時は次の方法へ
+        }
+    }
+    
+    // JSON オブジェクト全体を直接検索
+    const directMatch = text.match(/\{[\s\S]*\}/);
+    if (directMatch) {
+        try {
+            return JSON.parse(directMatch[0]);
+        } catch {
+            // パース失敗
+        }
+    }
+    
+    return null;
+}
+
+function parseGeminiGroupedResult(resultText, tweets) {
+    const jsonObj = extractJsonObjectFromGeminiResult(resultText);
+    if (!jsonObj || !Array.isArray(jsonObj.groups)) {
+        return null;
+    }
+    
+    const summary = String(jsonObj.summary || "");
+    const groups = [];
+    
+    for (const g of jsonObj.groups) {
+        const keyword = String(g.keyword || "").trim();
+        const reason = String(g.reason || "").trim();
+        const ids = Array.isArray(g.ids) ? g.ids : [];
+        
+        if (!keyword || ids.length === 0) {
+            continue;
+        }
+        
+        const relatedTweets = ids
+            .filter((id) => Number.isInteger(id) && id >= 1 && id <= tweets.length)
+            .map((id) => tweets[id - 1])
+            .filter((tweet) => Boolean(tweet));
+        
+        if (relatedTweets.length > 0) {
+            groups.push({ keyword, reason, tweets: relatedTweets });
+        }
+    }
+    
+    return groups.length > 0 ? { summary, groups } : null;
+}
+
+function buildFallbackGroupedResult(tweets, geminiResultText, topicKeyword) {
+    const relatedTweets = selectTweetsForGeminiResult(tweets, geminiResultText);
+    
+    if (relatedTweets.length === 0) {
+        return null;
+    }
+    
+    return {
+        summary: `キーワード「${topicKeyword}」に関連するツイートを抽出しました。`,
+        groups: [
+            {
+                keyword: topicKeyword,
+                reason: "Gemini応答との一致で抽出",
+                tweets: relatedTweets
+            }
+        ]
+    };
 }
 
 function formatTweetForCopy(tweet, index) {
@@ -240,7 +323,7 @@ function selectTweetsForGeminiResult(tweets, geminiResultText) {
     });
 }
 
-function showGeminiResultWindow(result, topicKeyword, relatedTweets = []) {
+function showGeminiResultWindow(result, topicKeyword, groupedResult = null) {
     const existingWindow = document.getElementById("gemini-result-window");
     if (existingWindow) {
         existingWindow.remove();
@@ -295,6 +378,11 @@ function showGeminiResultWindow(result, topicKeyword, relatedTweets = []) {
         gap: "8px"
     });
 
+    // グループ化されたツイートを全て集める（コピー用）
+    const allRelatedTweets = groupedResult?.groups
+        ? groupedResult.groups.flatMap((g) => g.tweets)
+        : [];
+
     const copyButton = document.createElement("button");
     copyButton.textContent = "Copy";
     Object.assign(copyButton.style, {
@@ -307,9 +395,22 @@ function showGeminiResultWindow(result, topicKeyword, relatedTweets = []) {
         fontSize: "12px"
     });
     copyButton.addEventListener("click", async () => {
-        const copyPayload = relatedTweets.length > 0
-            ? relatedTweets.map((tweet, index) => formatTweetForCopy(tweet, index + 1)).join("\n---\n")
-            : result;
+        let copyPayload = result;
+        
+        if (groupedResult && groupedResult.groups && groupedResult.groups.length > 0) {
+            const groupTexts = groupedResult.groups.map((group, gIndex) => {
+                const groupHeader = `\n■ グループ ${gIndex + 1}: ${group.keyword}\n理由: ${group.reason}\n`;
+                const tweetTexts = group.tweets
+                    .map((tweet, tIndex) => formatTweetForCopy(tweet, tIndex + 1))
+                    .join("\n---\n");
+                return groupHeader + tweetTexts;
+            });
+            copyPayload = `${groupedResult.summary}\n${groupTexts.join("\n\n")}`;
+        } else if (allRelatedTweets.length > 0) {
+            copyPayload = allRelatedTweets
+                .map((tweet, index) => formatTweetForCopy(tweet, index + 1))
+                .join("\n---\n");
+        }
 
         try {
             await navigator.clipboard.writeText(copyPayload);
@@ -355,16 +456,114 @@ function showGeminiResultWindow(result, topicKeyword, relatedTweets = []) {
         fontSize: "14px"
     });
 
-    if (relatedTweets.length > 0) {
+    // グループ化された結果を表示
+    if (groupedResult && groupedResult.groups && groupedResult.groups.length > 0) {
         const heading = document.createElement("div");
-        heading.textContent = `抽出結果: ${relatedTweets.length}件`;
+        heading.textContent = `キーワード別抽出: ${groupedResult.groups.length}グループ`;
+        Object.assign(heading.style, {
+            fontWeight: "bold",
+            marginBottom: "10px",
+            fontSize: "16px"
+        });
+        body.appendChild(heading);
+
+        // サマリーを表示
+        if (groupedResult.summary) {
+            const summaryBox = document.createElement("div");
+            summaryBox.textContent = groupedResult.summary;
+            Object.assign(summaryBox.style, {
+                padding: "10px",
+                marginBottom: "12px",
+                background: "#f0f9ff",
+                border: "1px solid #bfdbfe",
+                borderRadius: "6px",
+                lineHeight: "1.5"
+            });
+            body.appendChild(summaryBox);
+        }
+
+        // 各グループを表示
+        groupedResult.groups.forEach((group, gIndex) => {
+            const groupContainer = document.createElement("div");
+            Object.assign(groupContainer.style, {
+                marginBottom: "16px"
+            });
+
+            const groupTitle = document.createElement("div");
+            groupTitle.textContent = `${gIndex + 1}. ${group.keyword} (${group.tweets.length}件)`;
+            Object.assign(groupTitle.style, {
+                fontWeight: "bold",
+                marginBottom: "6px",
+                fontSize: "15px",
+                color: "#1e40af"
+            });
+            groupContainer.appendChild(groupTitle);
+
+            if (group.reason) {
+                const reasonText = document.createElement("div");
+                reasonText.textContent = `理由: ${group.reason}`;
+                Object.assign(reasonText.style, {
+                    fontSize: "13px",
+                    color: "#64748b",
+                    marginBottom: "8px",
+                    marginLeft: "8px"
+                });
+                groupContainer.appendChild(reasonText);
+            }
+
+            const tweetsContainer = document.createElement("div");
+            Object.assign(tweetsContainer.style, {
+                marginLeft: "12px"
+            });
+
+            group.tweets.forEach((tweet, tIndex) => {
+                tweetsContainer.appendChild(createTweetCardElement(tweet, tIndex + 1));
+            });
+
+            groupContainer.appendChild(tweetsContainer);
+            body.appendChild(groupContainer);
+        });
+
+        // Geminiの生レスポンスを折りたたみで表示
+        const rawDetails = document.createElement("details");
+        Object.assign(rawDetails.style, {
+            marginTop: "12px",
+            borderTop: "1px solid #e5e7eb",
+            paddingTop: "8px"
+        });
+
+        const rawSummary = document.createElement("summary");
+        rawSummary.textContent = "Geminiの生レスポンスを表示";
+        Object.assign(rawSummary.style, {
+            cursor: "pointer",
+            color: "#475569",
+            fontSize: "13px"
+        });
+
+        const rawText = document.createElement("div");
+        Object.assign(rawText.style, {
+            marginTop: "8px",
+            lineHeight: "1.6",
+            whiteSpace: "pre-wrap",
+            wordBreak: "break-word",
+            color: "#334155",
+            fontSize: "13px"
+        });
+        rawText.textContent = result;
+
+        rawDetails.append(rawSummary, rawText);
+        body.appendChild(rawDetails);
+    } else if (allRelatedTweets.length > 0) {
+        // グループ化されていないが関連ツイートがある場合（後方互換性）
+        const heading = document.createElement("div");
+        heading.textContent = `抽出結果: ${allRelatedTweets.length}件`;
         Object.assign(heading.style, {
             fontWeight: "bold",
             marginBottom: "10px"
         });
         body.appendChild(heading);
 
-        relatedTweets.forEach((tweet, index) => {
+        allRelatedTweets.forEach((tweet, index) => {
             body.appendChild(createTweetCardElement(tweet, index + 1));
         });
 
@@ -395,6 +594,7 @@ function showGeminiResultWindow(result, topicKeyword, relatedTweets = []) {
         rawDetails.append(rawSummary, rawText);
         body.appendChild(rawDetails);
     } else {
+        // テキストのみを表示
         const resultText = document.createElement("div");
         Object.assign(resultText.style, {
             lineHeight: "1.6",
@@ -436,8 +636,10 @@ function showGeminiResultWindow(result, topicKeyword, relatedTweets = []) {
 }
 
 async function sendToGemini(tweets, topicKeyword) {
+    const GEMINI_API_KEY = await getGeminiApiKey();
+    
     if (!GEMINI_API_KEY || GEMINI_API_KEY === "YOUR_GEMINI_API_KEY_HERE") {
-        alert("Gemini APIキーが設定されていません。content.jsのGEMINI_API_KEYを設定してください。");
+        alert("Gemini APIキーが設定されていません。拡張機能のポップアップでAPIキーを設定してください。");
         return;
     }
 
@@ -450,15 +652,26 @@ async function sendToGemini(tweets, topicKeyword) {
     const tweetText = tweets.map((tweet, index) => formatTweetForCopy(tweet, index + 1)).join("\n\n");
 
     const basePrompt = buildGeminiPrompt(normalizedKeyword);
-    const fixedFormatPrompt = "出力ルール: 抽出対象の番号を必ず1始まりで示し、先頭行を「抽出ID: 1,2,5」の形式で返してください。";
-    const promptText = GEMINI_EXTRA_PROMPT
-        ? `${basePrompt}\n${fixedFormatPrompt}\n${GEMINI_EXTRA_PROMPT}`
-        : `${basePrompt}\n${fixedFormatPrompt}`;
+    
+    // JSON形式でグループ化された結果を要求
+    const jsonFormatPrompt = `
+以下のルールに従って、指定されたトピックに関連するツイートを抽出し、キーワードごとにグループ化してください。
+
+ルール:
+1) 必ずJSONのみを返す（前後に説明文やコードブロックを付けない）
+2) 形式: {"summary": "全体の要約", "groups": [{"keyword": "キーワード", "ids": [ツイート番号の配列], "reason": "抽出理由"}]}
+3) groupsは関連度が高い順に並べる
+4) idsは重複なし、1から始まる整数の配列
+5) 各グループのkeywordは具体的で分かりやすい名前を付ける
+
+${GEMINI_EXTRA_PROMPT ? `追加指示: ${GEMINI_EXTRA_PROMPT}\n` : ""}
+トピック: ${normalizedKeyword}
+`.trim();
 
     const requestBody = {
         contents: [{
             parts: [{
-                text: `${promptText}\n\n${tweetText}`
+                text: `${jsonFormatPrompt}\n\n${tweetText}`
             }]
         }]
     };
@@ -482,17 +695,25 @@ async function sendToGemini(tweets, topicKeyword) {
 
         const data = await response.json();
         const result = data.candidates?.[0]?.content?.parts?.[0]?.text || "応答を取得できませんでした。";
-        const relatedTweets = selectTweetsForGeminiResult(tweets, result);
         
         console.log("Gemini Response:", result);
-        showGeminiResultWindow(result, topicKeyword, relatedTweets);
+        
+        // グループ化された結果をパース（失敗時はフォールバック）
+        const groupedResult = 
+            parseGeminiGroupedResult(result, tweets) ||
+            buildFallbackGroupedResult(tweets, result, normalizedKeyword);
+        
+        showGeminiResultWindow(result, topicKeyword, groupedResult);
         return result;
     } catch (error) {
         console.error("Gemini API Error:", error);
         const fallbackTweets = tweets.filter(
             (tweet) => Array.isArray(tweet.images) && tweet.images.length > 0
         );
-        showGeminiResultWindow(`エラーが発生しました:\n\n${error.message}`, topicKeyword, fallbackTweets);
+        const fallbackGrouped = fallbackTweets.length > 0
+            ? { summary: "エラーが発生しました", groups: [{ keyword: "画像付きツイート", reason: "フォールバック", tweets: fallbackTweets }] }
+            : null;
+        showGeminiResultWindow(`エラーが発生しました:\n\n${error.message}`, topicKeyword, fallbackGrouped);
         throw error;
     }
 }

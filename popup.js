@@ -1,10 +1,12 @@
 const targetCountInput = document.getElementById("targetCount");
 const topicKeywordInput = document.getElementById("topicKeyword");
+const geminiApiKeyInput = document.getElementById("geminiApiKey");
 const startButton = document.getElementById("startButton");
 const statusBox = document.getElementById("status");
 const STORAGE_KEYS = {
   topicKeyword: "savedTopicKeyword",
-  targetCount: "savedTargetCount"
+  targetCount: "savedTargetCount",
+  geminiApiKey: "savedGeminiApiKey"
 };
 
 function setStatus(text) {
@@ -27,13 +29,15 @@ function isSupportedUrl(url) {
 async function loadSavedSettings() {
   const defaults = {
     [STORAGE_KEYS.topicKeyword]: "",
-    [STORAGE_KEYS.targetCount]: 100
+    [STORAGE_KEYS.targetCount]: 100,
+    [STORAGE_KEYS.geminiApiKey]: ""
   };
 
   try {
     const saved = await chrome.storage.local.get(defaults);
     targetCountInput.value = String(saved[STORAGE_KEYS.targetCount] || 100);
     topicKeywordInput.value = saved[STORAGE_KEYS.topicKeyword] || "";
+    geminiApiKeyInput.value = saved[STORAGE_KEYS.geminiApiKey] || "";
   } catch (error) {
     console.warn("設定の読み込みに失敗しました", error);
   }
@@ -43,6 +47,7 @@ startButton.addEventListener("click", async () => {
   const requested = Number(targetCountInput.value);
   const targetCount = Number.isFinite(requested) && requested > 0 ? Math.floor(requested) : 100;
   const topicKeyword = topicKeywordInput.value.trim();
+  const geminiApiKey = geminiApiKeyInput.value.trim();
 
   startButton.disabled = true;
   setStatus("開始しています...");
@@ -53,9 +58,15 @@ startButton.addEventListener("click", async () => {
       return;
     }
 
+    if (!geminiApiKey) {
+      setStatus("Gemini APIキーを入力してください。");
+      return;
+    }
+
     await chrome.storage.local.set({
       [STORAGE_KEYS.topicKeyword]: topicKeyword,
-      [STORAGE_KEYS.targetCount]: targetCount
+      [STORAGE_KEYS.targetCount]: targetCount,
+      [STORAGE_KEYS.geminiApiKey]: geminiApiKey
     });
 
     const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
