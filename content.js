@@ -333,30 +333,29 @@ function showGeminiResultWindow(result, topicKeyword, groupedResult = null) {
     panel.id = "gemini-result-window";
     Object.assign(panel.style, {
         position: "fixed",
-        top: "50%",
-        left: "50%",
-        transform: "translate(-50%, -50%)",
-        width: "700px",
-        maxWidth: "90vw",
-        height: "80vh",
-        zIndex: "2147483648",
+        top: "24px",
+        right: "24px",
+        width: "640px",
+        maxWidth: "95vw",
+        height: "70vh",
+        zIndex: "2147483647",
         background: "#ffffff",
         color: "#111111",
         border: "1px solid #d9d9d9",
         borderRadius: "10px",
-        boxShadow: "0 12px 28px rgba(0, 0, 0, 0.3)",
+        boxShadow: "0 12px 28px rgba(0, 0, 0, 0.2)",
         display: "flex",
         flexDirection: "column",
+        resize: "both",
         overflow: "hidden",
         fontFamily: "Segoe UI, Arial, sans-serif"
     });
 
     const header = document.createElement("div");
     Object.assign(header.style, {
-        padding: "12px 14px",
-        background: "#4285f4",
-        color: "#ffffff",
-        borderBottom: "1px solid #3367d6",
+        padding: "10px 12px",
+        background: "#f3f4f6",
+        borderBottom: "1px solid #e5e7eb",
         display: "flex",
         alignItems: "center",
         justifyContent: "space-between",
@@ -365,12 +364,8 @@ function showGeminiResultWindow(result, topicKeyword, groupedResult = null) {
     });
 
     const title = document.createElement("strong");
-    title.textContent = topicKeyword 
-        ? `Gemini応答 - ${topicKeyword}` 
-        : "Gemini応答";
-    Object.assign(title.style, {
-        fontSize: "14px"
-    });
+    const keywordSuffix = topicKeyword ? ` | keyword: ${topicKeyword}` : "";
+    title.textContent = `Gemini Result${keywordSuffix}`;
 
     const actionArea = document.createElement("div");
     Object.assign(actionArea.style, {
@@ -386,11 +381,10 @@ function showGeminiResultWindow(result, topicKeyword, groupedResult = null) {
     const copyButton = document.createElement("button");
     copyButton.textContent = "Copy";
     Object.assign(copyButton.style, {
-        border: "1px solid #ffffff",
-        background: "transparent",
-        color: "#ffffff",
+        border: "1px solid #d1d5db",
+        background: "#ffffff",
         borderRadius: "6px",
-        padding: "4px 10px",
+        padding: "4px 8px",
         cursor: "pointer",
         fontSize: "12px"
     });
@@ -427,16 +421,14 @@ function showGeminiResultWindow(result, topicKeyword, groupedResult = null) {
     });
 
     const closeButton = document.createElement("button");
-    closeButton.textContent = "×";
+    closeButton.textContent = "x";
     Object.assign(closeButton.style, {
-        border: "1px solid #ffffff",
-        background: "transparent",
-        color: "#ffffff",
+        border: "1px solid #d1d5db",
+        background: "#ffffff",
         borderRadius: "6px",
-        padding: "4px 10px",
+        padding: "4px 8px",
         cursor: "pointer",
-        fontSize: "16px",
-        lineHeight: "1"
+        fontSize: "14px"
     });
     closeButton.addEventListener("click", () => {
         panel.remove();
@@ -450,7 +442,7 @@ function showGeminiResultWindow(result, topicKeyword, groupedResult = null) {
     const body = document.createElement("div");
     Object.assign(body.style, {
         overflow: "auto",
-        padding: "14px",
+        padding: "10px",
         background: "#ffffff",
         flex: "1",
         fontSize: "14px"
@@ -616,7 +608,7 @@ function showGeminiResultWindow(result, topicKeyword, groupedResult = null) {
         if (!isDragging) {
             return;
         }
-        panel.style.transform = "none";
+        panel.style.right = "auto";
         panel.style.left = `${event.clientX - offsetX}px`;
         panel.style.top = `${event.clientY - offsetY}px`;
     };
@@ -678,7 +670,8 @@ ${GEMINI_EXTRA_PROMPT ? `追加指示: ${GEMINI_EXTRA_PROMPT}\n` : ""}
 
     try {
         const response = await fetch(
-            `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${GEMINI_API_KEY}`,
+            //`https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${GEMINI_API_KEY}`,
+            `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`,
             {
                 method: "POST",
                 headers: {
@@ -769,7 +762,7 @@ function showTweetWindow(tweets, targetCount, topicKeyword) {
     });
 
     const geminiButton = document.createElement("button");
-    geminiButton.textContent = "Send to Gemini";
+    geminiButton.textContent = "Auto Sending...";
     Object.assign(geminiButton.style, {
         border: "1px solid #d1d5db",
         background: "#4285f4",
@@ -779,23 +772,27 @@ function showTweetWindow(tweets, targetCount, topicKeyword) {
         cursor: "pointer",
         fontSize: "12px"
     });
-    geminiButton.addEventListener("click", async () => {
+    const triggerGeminiSend = async (isAuto = false) => {
         geminiButton.disabled = true;
-        geminiButton.textContent = "Sending...";
+        geminiButton.textContent = isAuto ? "Auto Sending..." : "Sending...";
         try {
             await sendToGemini(tweets, topicKeyword || currentTopicKeyword);
-            geminiButton.textContent = "Sent!";
+            geminiButton.textContent = isAuto ? "Sent (Auto)" : "Sent!";
             setTimeout(() => {
-                geminiButton.textContent = "Send to Gemini";
+                geminiButton.textContent = "Resend to Gemini";
                 geminiButton.disabled = false;
             }, 2000);
         } catch {
             geminiButton.textContent = "Failed";
             setTimeout(() => {
-                geminiButton.textContent = "Send to Gemini";
+                geminiButton.textContent = "Retry Gemini";
                 geminiButton.disabled = false;
             }, 2000);
         }
+    };
+
+    geminiButton.addEventListener("click", () => {
+        void triggerGeminiSend(false);
     });
 
     const copyButton = document.createElement("button");
@@ -887,6 +884,9 @@ function showTweetWindow(tweets, targetCount, topicKeyword) {
     });
     document.addEventListener("mousemove", onMouseMove);
     document.addEventListener("mouseup", onMouseUp);
+
+    // ツイート表示後に自動でGemini送信を開始
+    void triggerGeminiSend(true);
 }
 
 async function fetchTweets(targetCount = 100, topicKeyword = "") {
