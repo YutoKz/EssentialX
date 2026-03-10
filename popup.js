@@ -1,12 +1,18 @@
 const targetCountInput = document.getElementById("targetCount");
 const topicKeywordInput = document.getElementById("topicKeyword");
 const geminiApiKeyInput = document.getElementById("geminiApiKey");
+const mailgunApiKeyInput = document.getElementById("mailgunApiKey");
+const mailgunDomainInput = document.getElementById("mailgunDomain");
+const emailToInput = document.getElementById("emailTo");
 const startButton = document.getElementById("startButton");
 const statusBox = document.getElementById("status");
 const STORAGE_KEYS = {
   topicKeyword: "savedTopicKeyword",
   targetCount: "savedTargetCount",
-  geminiApiKey: "savedGeminiApiKey"
+  geminiApiKey: "savedGeminiApiKey",
+  mailgunApiKey: "savedMailgunApiKey",
+  mailgunDomain: "savedMailgunDomain",
+  emailTo: "savedEmailTo"
 };
 
 function setStatus(text) {
@@ -30,7 +36,10 @@ async function loadSavedSettings() {
   const defaults = {
     [STORAGE_KEYS.topicKeyword]: "",
     [STORAGE_KEYS.targetCount]: 100,
-    [STORAGE_KEYS.geminiApiKey]: ""
+    [STORAGE_KEYS.geminiApiKey]: "",
+    [STORAGE_KEYS.mailgunApiKey]: "",
+    [STORAGE_KEYS.mailgunDomain]: "",
+    [STORAGE_KEYS.emailTo]: ""
   };
 
   try {
@@ -38,6 +47,9 @@ async function loadSavedSettings() {
     targetCountInput.value = String(saved[STORAGE_KEYS.targetCount] || 100);
     topicKeywordInput.value = saved[STORAGE_KEYS.topicKeyword] || "";
     geminiApiKeyInput.value = saved[STORAGE_KEYS.geminiApiKey] || "";
+    mailgunApiKeyInput.value = saved[STORAGE_KEYS.mailgunApiKey] || "";
+    mailgunDomainInput.value = saved[STORAGE_KEYS.mailgunDomain] || "";
+    emailToInput.value = saved[STORAGE_KEYS.emailTo] || "";
   } catch (error) {
     console.warn("設定の読み込みに失敗しました", error);
   }
@@ -48,6 +60,9 @@ startButton.addEventListener("click", async () => {
   const targetCount = Number.isFinite(requested) && requested > 0 ? Math.floor(requested) : 100;
   const topicKeyword = topicKeywordInput.value.trim();
   const geminiApiKey = geminiApiKeyInput.value.trim();
+  const mailgunApiKey = mailgunApiKeyInput.value.trim();
+  const mailgunDomain = mailgunDomainInput.value.trim();
+  const emailTo = emailToInput.value.trim();
 
   startButton.disabled = true;
   setStatus("開始しています...");
@@ -66,7 +81,10 @@ startButton.addEventListener("click", async () => {
     await chrome.storage.local.set({
       [STORAGE_KEYS.topicKeyword]: topicKeyword,
       [STORAGE_KEYS.targetCount]: targetCount,
-      [STORAGE_KEYS.geminiApiKey]: geminiApiKey
+      [STORAGE_KEYS.geminiApiKey]: geminiApiKey,
+      [STORAGE_KEYS.mailgunApiKey]: mailgunApiKey,
+      [STORAGE_KEYS.mailgunDomain]: mailgunDomain,
+      [STORAGE_KEYS.emailTo]: emailTo
     });
 
     const tabs = await chrome.tabs.query({ active: true, currentWindow: true });

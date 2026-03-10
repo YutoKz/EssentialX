@@ -436,7 +436,79 @@ function selectTweetsForGeminiResult(tweets, geminiResultText) {
     });
 }
 
-function showGeminiResultWindow(result, topicKeyword, groupedResult = null) {
+async function showGeminiResultWindow(result, topicKeyword, groupedResult = null) {
+    // Mailgun APIを使った自動メール送信処理
+    let emailStatus = "";
+    try {
+        const stored = await chrome.storage.local.get(["savedEmailTo", "savedMailgunApiKey", "savedMailgunDomain"]);
+        const emailTo = stored.savedEmailTo || "";
+        const mailgunApiKey = stored.savedMailgunApiKey || "";
+        const mailgunDomain = stored.savedMailgunDomain || "";
+        
+        if (emailTo && mailgunApiKey && mailgunDomain) {
+            const allRelatedTweets = groupedResult?.groups
+                ? groupedResult.groups.flatMap((g) => g.tweets)
+                : [];
+            
+            let emailBody = result;
+            
+            if (groupedResult && groupedResult.groups && groupedResult.groups.length > 0) {
+                const groupTexts = groupedResult.groups.map((group, gIndex) => {
+                    const groupHeader = `\n■ グループ ${gIndex + 1}: ${group.keyword}\n理由: ${group.reason}\n`;
+                    const tweetTexts = group.tweets
+                        .map((tweet, tIndex) => {
+                            const accountText = tweet.accountName ? `@${tweet.accountName}` : "";
+                            const textPreview = tweet.text ? tweet.text.substring(0, 100) : "";
+                            const tweetUrl = tweet.url || "";
+                            return `${tIndex + 1}. ${accountText}\n${textPreview}\n${tweetUrl}`;
+                        })
+                        .join("\n---\n");
+                    return groupHeader + tweetTexts;
+                });
+                emailBody = `${groupedResult.summary}\n${groupTexts.join("\n\n")}`;
+            } else if (allRelatedTweets.length > 0) {
+                emailBody = allRelatedTweets
+                    .map((tweet, index) => {
+                        const accountText = tweet.accountName ? `@${tweet.accountName}` : "";
+                        const textPreview = tweet.text ? tweet.text.substring(0, 100) : "";
+                        const tweetUrl = tweet.url || "";
+                        return `${index + 1}. ${accountText}\n${textPreview}\n${tweetUrl}`;
+                    })
+                    .join("\n---\n");
+            }
+            
+            // Mailgun APIでメール送信
+            const formData = new URLSearchParams();
+            formData.append("from", "Essential X <mailgun@" + mailgunDomain + ">");
+            formData.append("to", emailTo);
+            formData.append("subject", "Essential X");
+            formData.append("text", emailBody);
+            
+            const authHeader = "Basic " + btoa("api:" + mailgunApiKey);
+            
+            const response = await fetch(`https://api.mailgun.net/v3/${mailgunDomain}/messages`, {
+                method: "POST",
+                headers: {
+                    "Authorization": authHeader
+                },
+                body: formData
+            });
+            
+            if (response.ok) {
+                const responseData = await response.json();
+                console.log("✅ メール送信成功:", responseData);
+                emailStatus = " | 📧 送信完了";
+            } else {
+                const errorData = await response.json();
+                console.error("❌ メール送信失敗:", errorData);
+                emailStatus = " | ❌ 送信失敗";
+            }
+        }
+    } catch (error) {
+        console.warn("自動メール送信処理でエラーが発生しました:", error);
+        emailStatus = " | ⚠️ 送信エラー";
+    }
+    
     const existingWindow = document.getElementById("gemini-result-window");
     if (existingWindow) {
         existingWindow.remove();
@@ -479,7 +551,7 @@ function showGeminiResultWindow(result, topicKeyword, groupedResult = null) {
 
     const title = document.createElement("strong");
     const keywordSuffix = topicKeyword ? ` | keyword: ${topicKeyword}` : "";
-    title.textContent = `Gemini Result${keywordSuffix}`;
+    title.textContent = `Gemini Result${keywordSuffix}${emailStatus}`;
     Object.assign(title.style, {
         color: "#f8fafc",
         textShadow: "0 2px 10px rgba(0,0,0,0.3)",
@@ -794,8 +866,8 @@ ${GEMINI_EXTRA_PROMPT ? `追加指示: ${GEMINI_EXTRA_PROMPT}\n` : ""}
 
     try {
         const response = await fetch(
-            //`https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${GEMINI_API_KEY}`,
-            `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`,
+            `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${GEMINI_API_KEY}`,
+            //`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`,
             {
                 method: "POST",
                 headers: {
