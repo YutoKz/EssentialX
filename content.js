@@ -457,10 +457,10 @@ async function showGeminiResultWindow(result, topicKeyword, groupedResult = null
                     const groupHeader = `\n■ グループ ${gIndex + 1}: ${group.keyword}\n理由: ${group.reason}\n`;
                     const tweetTexts = group.tweets
                         .map((tweet, tIndex) => {
-                            const accountText = tweet.accountName ? `@${tweet.accountName}` : "";
-                            const textPreview = tweet.text ? tweet.text.substring(0, 100) : "";
+                            const accountText = tweet.account ? `@${tweet.account}` : "";
+                            const tweetText = tweet.text || "";
                             const tweetUrl = tweet.url || "";
-                            return `${tIndex + 1}. ${accountText}\n${textPreview}\n${tweetUrl}`;
+                            return `${tIndex + 1}. ${accountText}\n${tweetText}\n${tweetUrl}`;
                         })
                         .join("\n---\n");
                     return groupHeader + tweetTexts;
@@ -469,10 +469,10 @@ async function showGeminiResultWindow(result, topicKeyword, groupedResult = null
             } else if (allRelatedTweets.length > 0) {
                 emailBody = allRelatedTweets
                     .map((tweet, index) => {
-                        const accountText = tweet.accountName ? `@${tweet.accountName}` : "";
-                        const textPreview = tweet.text ? tweet.text.substring(0, 100) : "";
+                        const accountText = tweet.account ? `@${tweet.account}` : "";
+                        const tweetText = tweet.text || "";
                         const tweetUrl = tweet.url || "";
-                        return `${index + 1}. ${accountText}\n${textPreview}\n${tweetUrl}`;
+                        return `${index + 1}. ${accountText}\n${tweetText}\n${tweetUrl}`;
                     })
                     .join("\n---\n");
             }
